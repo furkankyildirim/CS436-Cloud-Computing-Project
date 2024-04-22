@@ -22,3 +22,58 @@ Even though we do not require automated CI/CD pipelines at this stage, we are pr
 # CLoud Architecture Diagram:
 
 ![Ekran görüntüsü 2024-04-16 165401](https://github.com/egeoztass/CS436-Project/assets/120418840/5e68b773-48f3-4d48-a0c8-859bf59609d2)
+
+# Installation and Running the Project:
+
+## Dependencies
+- Git: [Install Git](https://git-scm.com/downloads)
+- Docker: [Install Docker](https://docs.docker.com/get-docker/)
+- Docker Compose: [Install Docker Compose](https://docs.docker.com/compose/install/)
+- Node.js: [Install Node.js](https://nodejs.org/en/download/)
+- Yarn: [Install Yarn](https://classic.yarnpkg.com/en/docs/install)
+- MongoDB: [Install MongoDB](https://docs.mongodb.com/manual/installation/)
+
+
+## Clone the Repository
+```bash
+git clone https://github.com/egeoztass/CS436-Project.git
+cd CS436-Project/
+```
+
+## Server Side
+### Running the Project
+1. Change directory to the server folder
+```bash
+cd CS436-Project/server
+``` 
+
+2. Create a `.env` file in the `server` directory and add the following environment variables
+```bash
+PORT=3001
+MONGODB_URI=mongodb://mongo:27017/cs436-project
+JWT_SECRET=your_secret_key
+```
+
+3. Run the following commands to start the server
+```bash
+yarn install
+docker-compose up
+```
+
+## Client Side
+### Running the Project
+1. Change directory to the client folder
+```bash
+cd CS436-Project/client
+```
+
+2. Create a `.env` file in the `client` directory and add the following environment variables
+```bash
+REACT_APP_API_URL=http://localhost:3001
+```
+
+3. Run the following commands to start the client
+```bash
+yarn install
+yarn start
+```
