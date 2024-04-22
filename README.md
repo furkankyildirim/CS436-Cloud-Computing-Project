@@ -19,7 +19,7 @@ Our choice for the database is MongoDB Atlas, which will be hosted in its fully 
 
 Even though we do not require automated CI/CD pipelines at this stage, we are prepared to implement them using GitHub Actions to automate our deployment processes for the backend when the need arises.
 
-# CLoud Architecture Diagram:
+# Cloud Architecture Diagram:
 
 ![Ekran görüntüsü 2024-04-16 165401](https://github.com/egeoztass/CS436-Project/assets/120418840/5e68b773-48f3-4d48-a0c8-859bf59609d2)
 
