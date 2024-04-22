@@ -1,0 +1,14 @@
+version: '3.9'
+services:
+    client:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: client
+        hostname: client
+        image: client
+        volumes:
+            - .:/client
+        ports:
+            - 3000:3000
+        restart: always

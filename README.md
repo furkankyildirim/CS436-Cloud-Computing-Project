@@ -34,13 +34,13 @@ Even though we do not require automated CI/CD pipelines at this stage, we are pr
 - MongoDB: [Install MongoDB](https://docs.mongodb.com/manual/installation/)
 
 
-## Clone the Repository
+## Clone the Repository
 ```bash
 git clone https://github.com/egeoztass/CS436-Project.git
 cd CS436-Project/
 ```
 
-## Server Side
+## Server Side
 ### Running the Project
 1. Change directory to the server folder
 ```bash
@@ -49,9 +49,13 @@ cd CS436-Project/server
 
 2. Create a `.env` file in the `server` directory and add the following environment variables
 ```bash
+MONGODB_USER=user
+MONGODB_PASSWORD=123456
+MONGODB_HOST=localhost
+MONGODB_PORT=27017
+MONGO_URL=mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@${MONGODB_HOST}:${MONGODB_PORT}/
+JWT_SECRET=secret
 PORT=3001
-MONGODB_URI=mongodb://mongo:27017/cs436-project
-JWT_SECRET=your_secret_key
 ```
 
 3. Run the following commands to start the server
