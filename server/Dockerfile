@@ -1,36 +1,31 @@
-# syntax=docker/dockerfile:1
-
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/engine/reference/builder/
-
+# Use a specific version of Node.js based on an Alpine Linux image
 ARG NODE_VERSION=21.6.2
-
 FROM node:${NODE_VERSION}-alpine
 
-# Use production node environment by default.
+# Set the node environment to production
 ENV NODE_ENV production
 
+# Cloud Run defaults to listening on port 8080, but you can specify a different port
+# Set the PORT environment variable to match the port your application listens on
+ENV PORT 3001
 
-WORKDIR /usr/src/app
-
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.yarn to speed up subsequent builds.
-# Leverage a bind mounts to package.json and yarn.lock to avoid having to copy them into
-# into this layer.
-RUN --mount=type=bind,source=package.json,target=package.json \
-    --mount=type=bind,source=yarn.lock,target=yarn.lock \
-    --mount=type=cache,target=/root/.yarn \
-    yarn install --production --frozen-lockfile
-
-# Run the application as a non-root user.
-USER node
-
-# Copy the rest of the source files into the image.
-COPY . .
-
-# Expose the port that the application listens on.
+# Expose the port your application listens on
 EXPOSE 3001
 
-# Run the application.
-CMD yarn start
+# Set the working directory inside the container
+WORKDIR /usr/src/app
+
+# Copy package.json and yarn.lock into the working directory
+COPY package.json yarn.lock ./
+
+# Install production dependencies
+RUN yarn install --production --frozen-lockfile
+
+# Copy the rest of your application source code into the working directory
+COPY . .
+
+# Specify the user to run the application (non-root for security)
+USER node
+
+# Command to run your application
+CMD ["yarn", "start"]
