@@ -60,7 +60,6 @@ PORT=3001
 
 3. Run the following commands to start the server
 ```bash
-yarn install
 docker-compose up
 ```
 
@@ -78,6 +77,20 @@ REACT_APP_API_URL=http://localhost:3001
 
 3. Run the following commands to start the client
 ```bash
-yarn install
 yarn start
+```
+
+## Run on Google Cloud Platform
+
+1. Install Google Cloud SDK: [Install Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
+
+2. Authenticate and with Google Cloud
+```bash
+gcloud auth login
+gcloud init
+```
+3. Run the gcp-start.sh script
+```bash
+chmod +x gcp-start.sh
+./gcp-start.sh
 ```
