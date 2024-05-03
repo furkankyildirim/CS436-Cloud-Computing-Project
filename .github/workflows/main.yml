@@ -1,0 +1,81 @@
+name: Backend Build and Deployment to GCP
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to main branch
+
+env:
+  DEFAULT_DB_USER: "user"
+  DEFAULT_DB_PASSWORD: "123456"
+  DEFAULT_DB_HOSTNAME: "server-db"
+  DEFAULT_DB_PORT: "27017"
+  DEFAULT_VM_ZONE: "europe-west4-a"
+  DEFAULT_VM_TYPE: "e2"
+  DEFAULT_VM_CPU: "medium"
+  DEFAULT_VM_MEMORY: "4"
+  DEFAULT_FIREWALL_RULE: "allow-mongo"
+  DEFAULT_REPOSITORY_NAME: "server-repository"
+  DEFAULT_REPOSITORY_ZONE: "europe-west4"
+  DEFAULT_CLOUD_RUN_SERVICE_NAME: "server-backend"
+  DEFAULT_CLOUD_RUN_SERVICE_ZONE: "europe-west4"
+  DEFAULT_CLOUD_RUN_SERVICE_SECRET: "secret"
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0.3.0
+      with:
+        project_id: ${{ secrets.GCP_PROJECT }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+
+    - name: Configure Docker for GCP Artifact Registry
+      run: |
+        gcloud auth configure-docker ${{ secrets.ARTIFACT_REGISTRY_REGION }}-docker.pkg.dev
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t ${{ secrets.ARTIFACT_REGISTRY_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${{ secrets.ARTIFACT_REGISTRY_REPOSITORY }}/backend:${{ github.sha }} ./backend
+        docker push ${{ secrets.ARTIFACT_REGISTRY_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/${{ secrets.ARTIFACT_REGISTRY_REPOSITORY }}/backend:${{ github.sha }}
+
+    - name: Deploy MongoDB and configure environment
+      run: |
+        if gcloud compute instances list --format="value(name)" | grep -q "^$DEFAULT_DB_HOSTNAME$"; then
+          echo "DB '$DEFAULT_DB_HOSTNAME' exists."
+        else
+          echo "Creating MongoDB VM instance"
+          gcloud compute instances create-with-container $DEFAULT_DB_HOSTNAME \
+              --container-image=mongo:latest \
+              --tags=server-db \
+              --container-env MONGO_INITDB_ROOT_USERNAME=$DEFAULT_DB_USER,MONGO_INITDB_ROOT_PASSWORD=$DEFAULT_DB_PASSWORD \
+              --zone $DEFAULT_VM_ZONE \
+              --custom-cpu $DEFAULT_VM_CPU \
+              --custom-memory $DEFAULT_VM_MEMORY \
+              --custom-vm-type $DEFAULT_VM_TYPE
+        fi
+
+    - name: Configure firewall
+      run: |
+        if gcloud compute firewall-rules list --format="value(name)" | grep -q "^$DEFAULT_FIREWALL_RULE$"; then
+          echo "Firewall rule '$DEFAULT_FIREWALL_RULE' exists."
+        else
+          gcloud compute firewall-rules create $DEFAULT_FIREWALL_RULE \
+              --allow tcp:$DEFAULT_DB_PORT \
+              --target-tags server-db
+          echo "Firewall rule created."
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy $DEFAULT_CLOUD_RUN_SERVICE_NAME \
+            --image=$DEFAULT_REPOSITORY_ZONE-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/$DEFAULT_REPOSITORY_NAME/backend:${{ github.sha }} \
+            --platform=managed \
+            --region=$DEFAULT_CLOUD_RUN_SERVICE_ZONE \
+            --allow-unauthenticated \
+            --set-env-vars=MONGO_URI="mongodb://${{ env.DEFAULT_DB_USER }}:${{ env.DEFAULT_DB_PASSWORD }}@${{ env.DEFAULT_DB_HOSTNAME }}:${{ env.DEFAULT_DB_PORT }}",JWT_SECRET=$DEFAULT_CLOUD_RUN_SERVICE_SECRET
