@@ -1,10 +1,37 @@
-FROM node:20.10.0-slim
+
+# Use a specific version of Node.js based on an Alpine Linux image
+ARG NODE_VERSION=21.6.2
+FROM node:${NODE_VERSION}-alpine
+
+# Set the node environment to production
+ENV NODE_ENV production
+
+# Cloud Run defaults to listening on port 8080, but you can specify a different port
+# Set the PORT environment variable to match the port your application listens on
+ENV PORT 3001
+
+# Expose the port your application listens on
+EXPOSE 3001
+
+# Set the working directory inside the container
+
 WORKDIR /usr/src/app
 COPY package*.json ./
 RUN yarn install --production --frozen-lockfile
 
-# Copy local code to the container image.
+
+# Copy package.json and yarn.lock into the working directory
+COPY package.json yarn.lock ./
+
+# Install production dependencies
+RUN yarn install --production --frozen-lockfile
+
+# Copy the rest of your application source code into the working directory
 COPY . .
 
-# Run the web service on container startup.
-ENTRYPOINT ["yarn", "start"]
+# Specify the user to run the application (non-root for security)
+USER node
+
+# Command to run your application
+CMD ["yarn", "start"]
+

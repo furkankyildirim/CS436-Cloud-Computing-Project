@@ -9,6 +9,8 @@
 # https://github.com/docker/awesome-compose
 services:
   server:
+    env_file:
+      - .env
     container_name: server
     image: server
     build:
@@ -16,20 +18,11 @@ services:
     environment:
       NODE_ENV: production
     ports:
-      - 8080:8080
-    depends_on:
-      - mongo
+      - 3001:3001
+
     restart: always
 
-  mongo:
-    image: mongo:latest
-    container_name: mongo
-    restart: always
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: $MONGODB_USER
-      MONGO_INITDB_ROOT_PASSWORD: $MONGODB_PASSWORD
+
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to
 # start the database before your application. The `db-data` volume persists the
@@ -62,4 +55,5 @@ services:
 # secrets:
 #   db-password:
 #     file: db/password.txt
+
 
