@@ -21,7 +21,8 @@ Even though we do not require automated CI/CD pipelines at this stage, we are pr
 
 # Cloud Architecture Diagram:
 
-![Ekran görüntüsü 2024-04-16 165401](https://github.com/egeoztass/CS436-Project/assets/120418840/5e68b773-48f3-4d48-a0c8-859bf59609d2)
+![image](https://github.com/egeoztass/CS436-Project/assets/120418840/6ef6c67a-ef72-407e-a1b4-b0a3afc2fb4e)
+
 
 # Installation and Running the Project:
 
