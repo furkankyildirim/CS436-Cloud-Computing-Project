@@ -8,10 +8,10 @@ ENV NODE_ENV production
 
 # Cloud Run defaults to listening on port 8080, but you can specify a different port
 # Set the PORT environment variable to match the port your application listens on
-ENV PORT 3001
+ENV PORT 8080
 
 # Expose the port your application listens on
-EXPOSE 3001
+EXPOSE 8080
 
 # Set the working directory inside the container
 

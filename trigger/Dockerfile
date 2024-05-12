@@ -1,10 +1,15 @@
-FROM node:20.10.0-slim
-WORKDIR /usr/src/app
-COPY package*.json ./
-RUN yarn install --production --frozen-lockfile
+FROM python:3.11.5
 
-# Copy local code to the container image.
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /trigger
+COPY requirements.txt .
+RUN pip3 install -r requirements.txt
+# RUN pip3 install -r requirements.txt --no-cache-dir --no-dependencies
+
 COPY . .
 
-# Run the web service on container startup.
-ENTRYPOINT ["yarn", "start"]
+EXPOSE 8081
+
+# Run the application.
+CMD uvicorn main:app --host=0.0.0.0 --port=8081 --workers=4 --limit-concurrency=1000 --reload --proxy-headers
