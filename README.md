@@ -55,10 +55,28 @@ MONGODB_HOST=localhost
 MONGODB_PORT=27017
 MONGO_URL=mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@${MONGODB_HOST}:${MONGODB_PORT}/
 JWT_SECRET=secret
-PORT=3001
+PORT=8080
 ```
 
 3. Run the following commands to start the server
+```bash
+docker-compose up
+```
+
+## Upload Trigger Side
+### Running the Project
+1. Change directory to the trigger folder
+```bash
+cd CS436-Project/trigger
+```
+
+2. Create a `.env` file in the `trigger` directory and add the following environment variables
+```bash
+BUCKET_NAME=cs436-project
+PORT=8081
+```
+
+3. Run the following commands to start the trigger
 ```bash
 docker-compose up
 ```
