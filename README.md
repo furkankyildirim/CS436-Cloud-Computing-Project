@@ -21,7 +21,8 @@ Even though we do not require automated CI/CD pipelines at this stage, we are pr
 
 # Cloud Architecture Diagram:
 
-![Ekran görüntüsü 2024-04-16 165401](https://github.com/egeoztass/CS436-Project/assets/120418840/5e68b773-48f3-4d48-a0c8-859bf59609d2)
+![image](https://github.com/egeoztass/CS436-Project/assets/120418840/6ef6c67a-ef72-407e-a1b4-b0a3afc2fb4e)
+
 
 # Installation and Running the Project:
 
@@ -55,12 +56,29 @@ MONGODB_HOST=localhost
 MONGODB_PORT=27017
 MONGO_URL=mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@${MONGODB_HOST}:${MONGODB_PORT}/
 JWT_SECRET=secret
-PORT=3001
+PORT=8080
 ```
 
 3. Run the following commands to start the server
 ```bash
-yarn install
+docker-compose up
+```
+
+## Upload Trigger Side
+### Running the Project
+1. Change directory to the trigger folder
+```bash
+cd CS436-Project/trigger
+```
+
+2. Create a `.env` file in the `trigger` directory and add the following environment variables
+```bash
+BUCKET_NAME=cs436-project
+PORT=8081
+```
+
+3. Run the following commands to start the trigger
+```bash
 docker-compose up
 ```
 
@@ -78,6 +96,20 @@ REACT_APP_API_URL=http://localhost:3001
 
 3. Run the following commands to start the client
 ```bash
-yarn install
 yarn start
+```
+
+## Run on Google Cloud Platform
+
+1. Install Google Cloud SDK: [Install Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
+
+2. Authenticate and with Google Cloud
+```bash
+gcloud auth login
+gcloud init
+```
+3. Run the gcp-start.sh script
+```bash
+chmod +x gcp-start.sh
+./gcp-start.sh
 ```

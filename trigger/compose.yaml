@@ -9,19 +9,12 @@
 # https://github.com/docker/awesome-compose
 services:
   server:
-    env_file:
-      - .env
-    container_name: server
-    image: server
     build:
       context: .
     environment:
       NODE_ENV: production
     ports:
-      - 3001:3001
-
-    restart: always
-
+      - 8081:8081
 
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to
@@ -55,5 +48,4 @@ services:
 # secrets:
 #   db-password:
 #     file: db/password.txt
-
 

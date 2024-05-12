@@ -1,3 +1,4 @@
+
 # Use a specific version of Node.js based on an Alpine Linux image
 ARG NODE_VERSION=21.6.2
 FROM node:${NODE_VERSION}-alpine
@@ -13,7 +14,11 @@ ENV PORT 3001
 EXPOSE 3001
 
 # Set the working directory inside the container
+
 WORKDIR /usr/src/app
+COPY package*.json ./
+RUN yarn install --production --frozen-lockfile
+
 
 # Copy package.json and yarn.lock into the working directory
 COPY package.json yarn.lock ./
@@ -29,3 +34,4 @@ USER node
 
 # Command to run your application
 CMD ["yarn", "start"]
+
