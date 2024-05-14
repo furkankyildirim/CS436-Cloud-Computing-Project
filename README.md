@@ -66,18 +66,24 @@ docker-compose up
 
 ## Upload Trigger Side
 ### Running the Project
-1. Change directory to the trigger folder
+1. Create a Service Account for Cloud Storage. The service account have Storage Admin and Storage Insights Collector Service roles and storage.buckets.get permission on the bucket.
+
+2. Download the service account key json file from Cloud Storage Account/Keys
+
+
+3. Change directory to the trigger folder
 ```bash
 cd CS436-Project/trigger
 ```
 
-2. Create a `.env` file in the `trigger` directory and add the following environment variables
+4. Create a `.env` file in the `trigger` directory and add the following environment variables
 ```bash
-BUCKET_NAME=cs436-project
+GOOGLE_APPLICATION_CREDENTIALS=/PATH-TO-YOUR-KEY.JSON
+BUCKET_NAME=YOUR-BUCKET-NAME
 PORT=8081
 ```
 
-3. Run the following commands to start the trigger
+5. Run the following commands to start the trigger
 ```bash
 docker-compose up
 ```
