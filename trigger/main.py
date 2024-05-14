@@ -12,7 +12,7 @@ app = FastAPI()
 load_dotenv()
 
 # Get bucket name from environment variables
-bucket_name = os.getenv("BUCKET_NAME", "cs-436-project")
+bucket_name = os.getenv("BUCKET_NAME")
 if not bucket_name:
     raise EnvironmentError("BUCKET_NAME not found in environment variables")
 
@@ -20,7 +20,7 @@ if not bucket_name:
 storage_client = storage.Client()
 bucket = storage_client.get_bucket(bucket_name)
 
-@app.post("/upload/")
+@app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
         # Generate a random filename

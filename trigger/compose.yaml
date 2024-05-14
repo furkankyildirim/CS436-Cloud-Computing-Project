@@ -8,9 +8,15 @@
 # database or a cache. For examples, see the Awesome Compose repository:
 # https://github.com/docker/awesome-compose
 services:
-  server:
+  trigger:
     build:
       context: .
+      dockerfile: Dockerfile
+    container_name: trigger
+    hostname: trigger
+    image: trigger
+    volumes: 
+      - .:/trigger
     ports:
       - 8081:8081
     restart: always
