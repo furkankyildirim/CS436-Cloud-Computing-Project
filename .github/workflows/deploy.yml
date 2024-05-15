@@ -22,8 +22,23 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy MongoDB VM
+        run: ./scripts/deploy_vm.sh
+        env:
+          DEFAULT_DB_USER: user
+          DEFAULT_DB_PASSWORD: 123456
+          DEFAULT_DB_HOSTNAME: server-db
+          DEFAULT_DB_PORT: 27017
+          DEFAULT_VM_ZONE: europe-west4-a
+          DEFAULT_VM_TYPE: e2-medium
+          DEFAULT_VM_MEMORY: 4GB
+          DEFAULT_FIREWALL_RULE: allow-mongo
+
       - name: Build Docker Image
-        run: docker build -t $IMAGE_NAME:latest ./server
+        run: docker build -t ${{ env.IMAGE_NAME }}:latest ./server
 
       - name: Automatic Tagging of Releases
         id: increment-git-tag
@@ -39,7 +54,7 @@ jobs:
         env:
           GIT_TAG: ${{ steps.increment-git-tag.outputs.git-tag }}
         run: |
-          docker tag $IMAGE_NAME:latest europe-west1-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:latest
-          docker tag $IMAGE_NAME:latest europe-west1-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:$GIT_TAG
-          docker push europe-west1-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:latest
-          docker push europe-west1-docker.pkg.dev/$PROJECT_ID/images/$IMAGE_NAME:$GIT_TAG
+          docker tag ${{ env.IMAGE_NAME }}:latest europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:latest
+          docker tag ${{ env.IMAGE_NAME }}:latest europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:${{ env.GIT_TAG }}
+          docker push europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:latest
+          docker push europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:${{ env.GIT_TAG }}
