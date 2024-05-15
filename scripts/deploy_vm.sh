@@ -29,12 +29,12 @@ else
         --zone=$DEFAULT_VM_ZONE \
         --tags=$DEFAULT_FIREWALL_RULE \
         --metadata=startup-script='#! /bin/bash
-        sudo apt-get update
-        sudo apt-get install -y mongodb
-        sudo systemctl start mongodb
-        sudo mongo --eval "db.createUser({user: \"'"$DEFAULT_DB_USER"'\", pwd: \"'"$DEFAULT_DB_PASSWORD"'\", roles: [{role: \"root\", db: \"admin\"}]})"
-        sudo sed -i "\'s/bindIp: 127.0.0.1/bindIp: 0.0.0.0/\'" /etc/mongod.conf
-        sudo systemctl restart mongodb' \
+sudo apt-get update
+sudo apt-get install -y mongodb
+sudo systemctl start mongodb
+sudo mongo admin --eval "db.createUser({user: \"'"$DEFAULT_DB_USER"'\", pwd: \"'"$DEFAULT_DB_PASSWORD"'\", roles: [{role: \"root\", db: \"admin\"}]})"
+sudo sed -i "s/bindIp: 127.0.0.1/bindIp: 0.0.0.0/" /etc/mongod.conf
+sudo systemctl restart mongodb' \
         --scopes=https://www.googleapis.com/auth/cloud-platform
 
     if [ $? -ne 0 ]; then
