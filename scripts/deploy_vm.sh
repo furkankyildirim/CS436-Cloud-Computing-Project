@@ -29,12 +29,12 @@ function deploy_mongo_vm() {
             --zone=$DEFAULT_VM_ZONE \
             --tags=$DEFAULT_FIREWALL_RULE \
             --metadata=startup-script='#! /bin/bash
-            apt-get update
-            apt-get install -y mongodb
-            service mongodb start
-            mongo --eval "db.createUser({user: "'$DEFAULT_DB_USER'", pwd: "'$DEFAULT_DB_PASSWORD'", roles:[{role:"'root'", db:"'admin'"}]})"
-            echo "bind_ip = 0.0.0.0" >> /etc/mongodb.conf
-            service mongodb restart'
+            sudo apt-get update
+            sudo apt-get install -y mongodb
+            sudo service mongodb start
+            sudo mongo --eval "db.createUser({user: \"'$DEFAULT_DB_USER'\", pwd: \"'$DEFAULT_DB_PASSWORD'\", roles:[{role:\"root\", db:\"admin\"}]})"
+            sudo echo "bind_ip = 0.0.0.0" >> /etc/mongodb.conf
+            sudo service mongodb restart'
         echo "MongoDB VM created."
     fi
 }
