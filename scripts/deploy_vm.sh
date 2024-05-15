@@ -31,10 +31,13 @@ function deploy_mongo_vm() {
             --metadata=startup-script='#! /bin/bash
             sudo apt-get update
             sudo apt-get install -y mongodb
-            sudo service mongodb start
-            sudo mongo --eval "db.createUser({user: \"'$DEFAULT_DB_USER'\", pwd: \"'$DEFAULT_DB_PASSWORD'\", roles:[{role:\"root\", db:\"admin\"}]})"
-            sudo echo "bind_ip = 0.0.0.0" >> /etc/mongodb.conf
-            sudo service mongodb restart'
+            sudo systemctl start mongodb
+            echo "mongodb soft nofile 64000" >> /etc/security/limits.conf
+            echo "mongodb hard nofile 64000" >> /etc/security/limits.conf
+            sudo systemctl restart mongodb
+            sudo mongo admin --eval "db.createUser({user: '\"$DEFAULT_DB_USER\"', pwd: '\"$DEFAULT_DB_PASSWORD\"', roles: [{role: '\"root\"', db: '\"admin\"'}]})"
+            echo "bindIp: 0.0.0.0" | sudo tee -a /etc/mongod.conf
+            sudo systemctl restart mongodb'
         echo "MongoDB VM created."
     fi
 }
