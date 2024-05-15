@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Default configuration values
+# Default values
 DEFAULT_DB_USER="user"
 DEFAULT_DB_PASSWORD="123456"
 DEFAULT_DB_HOSTNAME="server-db"
@@ -12,57 +12,57 @@ DEFAULT_VM_MEMORY="4GB"
 
 DEFAULT_FIREWALL_RULE="allow-mongo"
 
-# Google Cloud Project ID
-PROJECT_ID="$(gcloud config get-value project)"
-
-# Deploy MongoDB on a GCE instance
-function deploy_mongo_vm() {
-    echo "Checking if the MongoDB VM exists..."
-    if gcloud compute instances describe $DEFAULT_DB_HOSTNAME --zone $DEFAULT_VM_ZONE &> /dev/null; then
-        echo "MongoDB VM already exists."
-    else
-        echo "Creating MongoDB VM..."
-        gcloud compute instances create $DEFAULT_DB_HOSTNAME \
-            --machine-type=$DEFAULT_VM_TYPE \
-            --image-family=debian-10 \
-            --image-project=debian-cloud \
-            --zone=$DEFAULT_VM_ZONE \
-            --tags=$DEFAULT_FIREWALL_RULE \
-            --metadata=startup-script='#! /bin/bash
-            sudo apt-get update
-            sudo apt-get install -y mongodb
-            sudo systemctl start mongodb
-            echo "mongodb soft nofile 64000" >> /etc/security/limits.conf
-            echo "mongodb hard nofile 64000" >> /etc/security/limits.conf
-            sudo systemctl restart mongodb
-            sudo mongo admin --eval "db.createUser({user: '\"$DEFAULT_DB_USER\"', pwd: '\"$DEFAULT_DB_PASSWORD\"', roles: [{role: '\"root\"', db: '\"admin\"'}]})"
-            echo "bindIp: 0.0.0.0" | sudo tee -a /etc/mongod.conf
-            sudo systemctl restart mongodb'
-        echo "MongoDB VM created."
-    fi
-}
-
-# Configure Firewall to allow traffic to MongoDB
-function setup_firewall() {
-    echo "Setting up firewall rule for MongoDB..."
-    if gcloud compute firewall-rules describe $DEFAULT_FIREWALL_RULE &> /dev/null; then
-        echo "Firewall rule already exists."
-    else
-        gcloud compute firewall-rules create $DEFAULT_FIREWALL_RULE \
-            --direction=INGRESS \
-            --priority=1000 \
-            --network=default \
-            --action=ALLOW \
-            --rules=tcp:$DEFAULT_DB_PORT \
-            --source-ranges=0.0.0.0/0 \
-            --target-tags=$DEFAULT_FIREWALL_RULE
-        echo "Firewall rule created."
-    fi
-}
-
-# Main execution
+# Begin deployment script
 echo "Deploying MongoDB on Google Cloud VM..."
-deploy_mongo_vm
-setup_firewall
+
+# Check if the MongoDB VM exists
+echo "Checking if the MongoDB VM exists..."
+VM_EXISTS=$(gcloud compute instances describe $DEFAULT_DB_HOSTNAME --zone $DEFAULT_VM_ZONE --format="get(name)" 2>/dev/null)
+if [ "$VM_EXISTS" == "$DEFAULT_DB_HOSTNAME" ]; then
+    echo "MongoDB VM already exists."
+else
+    echo "Creating MongoDB VM..."
+    gcloud compute instances create $DEFAULT_DB_HOSTNAME \
+        --machine-type=$DEFAULT_VM_TYPE \
+        --image-family=debian-10 \
+        --image-project=debian-cloud \
+        --zone=$DEFAULT_VM_ZONE \
+        --tags=$DEFAULT_FIREWALL_RULE \
+        --metadata=startup-script='#! /bin/bash
+        sudo apt-get update
+        sudo apt-get install -y mongodb
+        sudo systemctl start mongodb
+        sudo mongo --eval "db.createUser({user: \"'"$DEFAULT_DB_USER"'\", pwd: \"'"$DEFAULT_DB_PASSWORD"'\", roles: [{role: \"root\", db: \"admin\"}]})"
+        sudo sed -i "\'s/bindIp: 127.0.0.1/bindIp: 0.0.0.0/\'" /etc/mongod.conf
+        sudo systemctl restart mongodb' \
+        --scopes=https://www.googleapis.com/auth/cloud-platform
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to create MongoDB VM."
+        exit 1
+    else
+        echo "MongoDB VM created successfully."
+    fi
+fi
+
+# Set up firewall rule for MongoDB
+echo "Setting up firewall rule for MongoDB..."
+FIREWALL_EXISTS=$(gcloud compute firewall-rules describe $DEFAULT_FIREWALL_RULE --format="get(name)" 2>/dev/null)
+if [ "$FIREWALL_EXISTS" == "$DEFAULT_FIREWALL_RULE" ]; then
+    echo "Firewall rule already exists."
+else
+    echo "Creating firewall rule to allow MongoDB traffic on port $DEFAULT_DB_PORT..."
+    gcloud compute firewall-rules create $DEFAULT_FIREWALL_RULE \
+        --allow tcp:$DEFAULT_DB_PORT \
+        --target-tags=$DEFAULT_FIREWALL_RULE \
+        --direction=INGRESS
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to create firewall rule."
+        exit 1
+    else
+        echo "Firewall rule created successfully."
+    fi
+fi
 
 echo "Deployment complete."
