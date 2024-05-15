@@ -25,6 +25,9 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set script permissions
+        run: chmod +x ./scripts/deploy_vm.sh
+
       - name: Deploy MongoDB VM
         run: ./scripts/deploy_vm.sh
         env:
