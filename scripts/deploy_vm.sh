@@ -22,25 +22,12 @@ if [ "$VM_EXISTS" == "$DEFAULT_DB_HOSTNAME" ]; then
 else
     echo "Creating MongoDB VM..."
 
-    # Create a temporary startup script file
-    cat <<EOF > startup-script.sh
-#!/bin/bash
-sudo apt-get update
-sudo apt-get install -y mongodb
-sudo systemctl start mongodb
-sudo mongo admin --eval "db.createUser({user: '${DEFAULT_DB_USER}', pwd: '${DEFAULT_DB_PASSWORD}', roles: [{role: 'root', db: 'admin'}]})"
-sudo sed -i 's/bindIp: 127.0.0.1/bindIp: 0.0.0.0/' /etc/mongod.conf
-sudo systemctl restart mongodb
-EOF
-
-    gcloud compute instances create $DEFAULT_DB_HOSTNAME \
+    gcloud compute instances create-with-container $DEFAULT_DB_HOSTNAME \
         --machine-type=$DEFAULT_VM_TYPE \
-        --image-family=debian-10 \
-        --image-project=debian-cloud \
         --zone=$DEFAULT_VM_ZONE \
         --tags=$DEFAULT_FIREWALL_RULE \
-        --metadata-from-file=startup-script=startup-script.sh \
-        --scopes=https://www.googleapis.com/auth/cloud-platform
+        --container-image=mongo:latest \
+        --container-env MONGO_INITDB_ROOT_USERNAME=$DEFAULT_DB_USER,MONGO_INITDB_ROOT_PASSWORD=$DEFAULT_DB_PASSWORD \
 
     if [ $? -ne 0 ]; then
         echo "Failed to create MongoDB VM."
