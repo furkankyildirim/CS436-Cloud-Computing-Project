@@ -26,10 +26,10 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Set script permissions
-        run: chmod +x ./scripts/deploy_vm.sh
+        run: chmod +x ./scripts/deploy_db.sh
 
       - name: Deploy MongoDB VM
-        run: ./scripts/deploy_vm.sh
+        run: ./scripts/deploy_db.sh
         env:
           DEFAULT_DB_USER: user
           DEFAULT_DB_PASSWORD: 123456
@@ -61,3 +61,12 @@ jobs:
           docker tag ${{ env.IMAGE_NAME }}:latest europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:${{ env.GIT_TAG }}
           docker push europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:latest
           docker push europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:${{ env.GIT_TAG }}
+
+      - name: Build Deployment on Cloud Run
+        run: |
+          gcloud run deploy ${{ env.IMAGE_NAME }} \
+            --image=europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:${{ env.GIT_TAG }} \
+            --platform=managed \
+            --region=europe-west1 \
+            --allow-unauthenticated
+            --set-env-vars=MONGO_URI="mongodb://${{ env.DEFAULT_DB_USER }}:${{ env.DEFAULT_DB_PASSWORD }}@${{ env.DEFAULT_DB_HOSTNAME }}:${{ env.DEFAULT_DB_PORT }}",JWT_SECRET="secret"
