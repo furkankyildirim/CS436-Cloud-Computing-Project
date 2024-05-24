@@ -32,6 +32,26 @@ app.use(bodyParser.urlencoded({ limit: "30mb", extended: true }));
 app.use(cors());
 app.use("/assets", express.static(path.join(__dirname, "public/assets")));
 
+const uploadImage = async (req, res) => {
+  try {
+    const { file } = req;
+    if (!file) {
+      return res.status(400).json({ error: "File is required." });
+    }
+    const formData = new FormData();
+    const serviceUrl = `${process.env.BUCKET_SERVICE}/upload`;
+    formData.append("file", file.buffer, file.originalname);
+    const response = await fetch(serviceUrl, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
 /* FILE STORAGE */
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
