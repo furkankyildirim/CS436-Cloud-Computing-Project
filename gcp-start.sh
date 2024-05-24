@@ -280,8 +280,7 @@ fi
 cd ./server && gcloud auth configure-docker "$REPOSITORY_ZONE-docker.pkg.dev" --quiet && cd ..
 
 # Build and push the image to the Artifact Registry repository if it does not exist
-docker build -t $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image ./server --no-cache
-docker push $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image
+gcloud builds submit --tag $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image:latest ./server
 
 # Check if the image is built and pushed successfully
 if [ $? -ne 0 ]; then
@@ -304,4 +303,4 @@ gcloud run deploy $CLOUD_RUN_SERVICE_NAME \
     --platform=managed \
     --region=$CLOUD_RUN_SERVICE_ZONE \
     --allow-unauthenticated \
-    --set-env-vars=MONGO_URI="mongodb://$DB_USER:$DB_PASSWORD@$DB_IP:$DB_PORT",JWT_SECRET=$CLOUD_RUN_SERVICE_SECRET
+    --set-env-vars=MONGO_URL="mongodb://$DB_USER:$DB_PASSWORD@$DB_IP:$DB_PORT",JWT_SECRET=$CLOUD_RUN_SERVICE_SECRET
