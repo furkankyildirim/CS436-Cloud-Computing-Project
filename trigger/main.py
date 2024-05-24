@@ -5,6 +5,7 @@ import tempfile
 import os
 import uuid
 from dotenv import load_dotenv
+from agraffe import Agraffe
 
 app = FastAPI()
 
@@ -19,6 +20,10 @@ if not bucket_name:
 # Set up Google Cloud Storage client
 storage_client = storage.Client()
 bucket = storage_client.get_bucket(bucket_name)
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -45,3 +50,5 @@ async def upload_file(file: UploadFile = File(...)):
         return {"url": blob.public_url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+handler = Agraffe.entry_point(app) 

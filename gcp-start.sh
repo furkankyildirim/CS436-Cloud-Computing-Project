@@ -1,3 +1,5 @@
+!#/bin/bash
+
 # Default values for db user and password
 DEFAULT_DB_USER="user"
 DEFAULT_DB_PASSWORD="123456"
@@ -17,6 +19,12 @@ DEFAULT_REPOSITORY_ZONE="europe-west4"
 DEFAULT_CLOUD_RUN_SERVICE_NAME="server-backend"
 DEFAULT_CLOUD_RUN_SERVICE_ZONE="europe-west4"
 DEFAULT_CLOUD_RUN_SERVICE_SECRET="secret"
+
+DEFAULT_CLOUD_FUNCTION_NAME="trigger-service"
+DEFAULT_CLOUD_FUNCTION_ZONE="europe-west3"
+
+DEFAULT_CLOUD_BUCKET_ZONE="europe-west4"
+DEFAULT_CLOUD_BUCKET_NAME="picture-bucket"
 
 
 # Parse command line arguments
@@ -94,6 +102,26 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
+    --cloud-function-name)
+        CLOUD_FUNCTION_NAME="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --cloud-function-zone)
+        CLOUD_FUNCTION_ZONE="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --cloud-bucket-name)
+        CLOUD_BUCKET_NAME="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --cloud-bucket-zone)
+        CLOUD_BUCKET_ZONE="$2"
+        shift # past argument
+        shift # past value
+        ;;
     -h | --help)
         echo "Usage: gcp-start.sh [OPTIONS]"
         echo "Options:"
@@ -111,6 +139,10 @@ while [[ $# -gt 0 ]]; do
         echo "  --service-name         Name of the Cloud Run service. Default: server-backend"
         echo "  --service-zone         Zone of the Cloud Run service. Default: europe-west4"
         echo "  --service-secret       Secret key for the Cloud Run service. Default: secret"
+        echo "  --cloud-function-name  Name of the Cloud Function. Default: trigger-service"
+        echo "  --cloud-function-zone  Zone of the Cloud Function. Default: europe-west3"
+        echo "  --cloud-bucket-name    Name of the Cloud Storage bucket. Default: picture-bucket"
+        echo "  --cloud-bucket-zone    Zone of the Cloud Storage bucket. Default: europe-west4"
         echo "  -h, --help             Display help"
         exit 0
         ;;
@@ -189,6 +221,26 @@ fi
 if [ -z "$CLOUD_RUN_SERVICE_SECRET" ]; then
     echo "Warning: --service-secret is not provided. Using the default value 'secret'."
     CLOUD_RUN_SERVICE_SECRET="${CLOUD_RUN_SERVICE_SECRET:-$DEFAULT_CLOUD_RUN_SERVICE_SECRET}"
+fi
+
+if [ -z "$CLOUD_FUNCTION_NAME" ]; then
+    echo "Warning: --cloud-function-name is not provided. Using the default value 'trigger-service'."
+    CLOUD_FUNCTION_NAME="${CLOUD_FUNCTION_NAME:-$DEFAULT_CLOUD_FUNCTION_NAME}"
+fi
+
+if [ -z "$CLOUD_FUNCTION_ZONE" ]; then
+    echo "Warning: --cloud-function-zone is not provided. Using the default value 'europe-west4'."
+    CLOUD_FUNCTION_ZONE="${CLOUD_FUNCTION_ZONE:-$DEFAULT_CLOUD_FUNCTION_ZONE}"
+fi
+
+if [ -z "$CLOUD_BUCKET_NAME" ]; then
+    echo "Warning: --cloud-bucket-name is not provided. Using the default value 'picture-bucket'."
+    CLOUD_BUCKET_NAME="${CLOUD_BUCKET_NAME:-$DEFAULT_CLOUD_BUCKET_NAME}"
+fi
+
+if [ -z "$CLOUD_BUCKET_ZONE" ]; then
+    echo "Warning: --cloud-bucket-zone is not provided. Using the default value 'europe-west4'."
+    CLOUD_BUCKET_ZONE="${CLOUD_BUCKET_ZONE:-$DEFAULT_CLOUD_BUCKET_ZONE}"
 fi
 
 # Check if gcloud command is installed
@@ -279,7 +331,7 @@ fi
 # Authenticate to the Artifact Registry repository and docker login
 cd ./server && gcloud auth configure-docker "$REPOSITORY_ZONE-docker.pkg.dev" --quiet && cd ..
 
-# Build and push the image to the Artifact Registry repository if it does not exist
+# Build and push the server image to the Artifact Registry repository if it does not exist
 gcloud builds submit --tag $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image:latest ./server
 
 # Check if the image is built and pushed successfully
@@ -292,15 +344,64 @@ else
 fi
 
 
-# STEP 3: Deploy the application to the Cloud Run
+# STEP 3: Cloud Storage Bucket
+# Enable the Cloud Storage API
+echo "Enabling the Cloud Storage API."
+gcloud services enable storage-component.googleapis.com --quiet
+
+# Create a Cloud Storage bucket if it does not exist
+if gsutil ls | grep -q "gs://$PROJECT_ID-$CLOUD_BUCKET_NAME"; then
+    echo "Cloud Storage bucket 'gs://$PROJECT_ID-$CLOUD_BUCKET_NAME' exists."
+else
+    echo "Cloud Storage bucket 'gs://$PROJECT_ID-$CLOUD_BUCKET_NAME' does not exist. Creating a new bucket."
+    gsutil mb -l $CLOUD_BUCKET_ZONE gs://$PROJECT_ID-$CLOUD_BUCKET_NAME/
+    echo "Cloud Storage bucket 'gs://$PROJECT_ID-$CLOUD_BUCKET_NAME' is created."
+fi
+
+# Check if the bucket is created successfully
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to create the Cloud Storage bucket."
+    exit 1
+else
+    echo "Cloud Storage bucket 'gs://$PROJECT_ID-$CLOUD_BUCKET_NAME' is created."
+fi
+
+
+# STEP 4: Trigger Deployment
+# Enable cloud functions API
+echo "Enabling the Cloud Functions API."
+gcloud services enable cloudfunctions.googleapis.com --quiet
+
+# Deploy the trigger function to the Cloud Functions using Python FastaAPI
+gcloud functions deploy $CLOUD_FUNCTION_NAME \
+    --entry-point handler \
+    --runtime python39 \
+    --trigger-http \
+    --allow-unauthenticated \
+    --region $CLOUD_FUNCTION_ZONE \
+    --source ./trigger \
+    --set-env-vars BUCKET_NAME=$PROJECT_ID-$CLOUD_BUCKET_NAME
+
+# Check if the function is deployed successfully
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to deploy the Cloud Function."
+    exit 1
+else
+    echo "Cloud Function '$CLOUD_FUNCTION_NAME' is deployed."
+fi
+
+# Get the trigger URL of the Cloud Function
+TRIGGER_URL=$(gcloud functions describe $CLOUD_FUNCTION_NAME --region=$CLOUD_FUNCTION_ZONE --format="value(httpsTrigger.url)")
+
+# STEP 4: Deploy the application to the Cloud Run
 # Enable the Cloud Run API
 echo "Enabling the Cloud Run API."
 gcloud services enable run.googleapis.com --quiet
 
 # Deploy the application to the Cloud Run
 gcloud run deploy $CLOUD_RUN_SERVICE_NAME \
-    --image=$REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image:latest \
-    --platform=managed \
-    --region=$CLOUD_RUN_SERVICE_ZONE \
+    --image $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image:latest \
+    --platform managed \
+    --region $CLOUD_RUN_SERVICE_ZONE \
     --allow-unauthenticated \
-    --set-env-vars=MONGO_URL="mongodb://$DB_USER:$DB_PASSWORD@$DB_IP:$DB_PORT",JWT_SECRET=$CLOUD_RUN_SERVICE_SECRET
+    --set-env-vars MONGO_URL="mongodb://$DB_USER:$DB_PASSWORD@$DB_IP:$DB_PORT",JWT_SECRET=$CLOUD_RUN_SERVICE_SECRET,TRIGGER_URL=$TRIGGER_URL
