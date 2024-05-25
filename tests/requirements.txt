@@ -1,0 +1,2 @@
+locust==2.5.0
+requests_toolbelt==1.0.0
