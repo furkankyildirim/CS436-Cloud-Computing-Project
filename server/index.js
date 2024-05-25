@@ -8,6 +8,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
+import https from 'https';
+import { Readable } from 'stream';
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import postRoutes from "./routes/posts.js";
@@ -32,25 +34,68 @@ app.use(bodyParser.urlencoded({ limit: "30mb", extended: true }));
 app.use(cors());
 app.use("/assets", express.static(path.join(__dirname, "public/assets")));
 
-const uploadImage = async (req, res) => {
+const uploadImage = async (req) => {
   try {
     const { file } = req;
     if (!file) {
-      return res.status(400).json({ error: "File is required." });
+      throw new Error("File is required.");
     }
-    const formData = new FormData();
-    const serviceUrl = `${process.env.BUCKET_SERVICE}/upload`;
-    formData.append("file", file.buffer, file.originalname);
-    const response = await fetch(serviceUrl, {
-      method: "POST",
-      body: formData,
+
+    const serviceUrl = new URL(`${process.env.TRIGGER_URL}/upload`);
+
+    const formDataBoundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
+    const formData = [
+      `--${formDataBoundary}`,
+      `Content-Disposition: form-data; name="file"; filename="${file.originalname}"`,
+      'Content-Type: application/octet-stream',
+      '',
+      file.buffer.toString('binary'),
+      `--${formDataBoundary}--`,
+    ].join('\r\n');
+
+    const formDataBuffer = Buffer.from(formData, 'binary');
+
+    const options = {
+      method: 'POST',
+      hostname: serviceUrl.hostname,
+      path: serviceUrl.pathname,
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${formDataBoundary}`,
+        'Content-Length': formDataBuffer.length,
+      },
+    };
+
+    const uploadPromise = new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`Error from Cloud Function: ${res.statusCode} - ${res.statusMessage}`));
+          } else {
+            resolve(JSON.parse(data));
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.write(formDataBuffer);
+      req.end();
     });
-    const data = await response.json();
-    res.status(201).json(data);
+
+    const uploadResponse = await uploadPromise;
+    return uploadResponse;
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error uploading image:", error);
+    throw error;
   }
-}
+};
 
 /* FILE STORAGE */
 const storage = multer.memoryStorage();
@@ -60,11 +105,20 @@ const upload = multer({ storage });
 app.post("/auth/register", upload.single("picture"), register);
 app.post("/posts", verifyToken, upload.single("picture"), async (req, res) => {
   try {
+    console.log("Received request with body:", req.body);
+    console.log("Received file:", req.file);
+
     const uploadResponse = await uploadImage(req);
+    console.log("Upload response:", uploadResponse);
+
     const { url } = uploadResponse;
+    console.log("Image URL:", url);
 
     const { userId, description } = req.body;
     const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
 
     const newPost = new Post({
       userId,
@@ -82,6 +136,7 @@ app.post("/posts", verifyToken, upload.single("picture"), async (req, res) => {
     const posts = await Post.find();
     res.status(201).json(posts);
   } catch (error) {
+    console.error("Error creating post:", error);
     res.status(409).json({ message: error.message });
   }
 });
@@ -93,7 +148,6 @@ app.use("/posts", postRoutes);
 
 /* MONGOOSE SETUP */
 const PORT = process.env.PORT || 8080;
-const BUCKET_SERVICE = process.env.TRIGGER_URL || "localhost:8081";
 
 mongoose
   .connect(process.env.MONGO_URL, {
