@@ -1,49 +1,26 @@
 import Post from "../models/Post.js";
 import User from "../models/User.js";
-import { bucket } from './cloudStorage.js';
-import { v4 as uuidv4 } from 'uuid';
 
 /* CREATE */
 export const createPost = async (req, res) => {
   try {
-    const { userId, description } = req.body;
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'File is required.' });
-    }
-
+    const { userId, description, picturePath } = req.body;
     const user = await User.findById(userId);
-
-    const blob = bucket.file(`images/${uuidv4()}-${req.file.originalname}`);
-    const blobStream = blob.createWriteStream({
-      resumable: false,
+    const newPost = new Post({
+      userId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      location: user.location,
+      description,
+      userPicturePath: user.picturePath,
+      picturePath,
+      likes: {},
+      comments: [],
     });
+    await newPost.save();
 
-    blobStream.on('error', (err) => {
-      res.status(500).json({ error: err.message });
-    });
-
-    blobStream.on('finish', async () => {
-      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-
-      const newPost = new Post({
-        userId,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        location: user.location,
-        description,
-        userPicturePath: user.picturePath,
-        picturePath: publicUrl,
-        likes: {},
-        comments: [],
-      });
-
-      await newPost.save();
-      const posts = await Post.find();
-      res.status(201).json(posts);
-    });
-
-    blobStream.end(req.file.buffer);
+    const post = await Post.find();
+    res.status(201).json(post);
   } catch (err) {
     res.status(409).json({ message: err.message });
   }
