@@ -1,5 +1,3 @@
-!#/bin/bash
-
 # Default values for db user and password
 DEFAULT_DB_USER="user"
 DEFAULT_DB_PASSWORD="123456"

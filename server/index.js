@@ -53,19 +53,38 @@ const uploadImage = async (req, res) => {
 }
 
 /* FILE STORAGE */
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "public/assets");
-  },
-  filename: function (req, file, cb) {
-    cb(null, file.originalname);
-  },
-});
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 /* ROUTES WITH FILES */
 app.post("/auth/register", upload.single("picture"), register);
-app.post("/posts", verifyToken, upload.single("picture"), createPost);
+app.post("/posts", verifyToken, upload.single("picture"), async (req, res) => {
+  try {
+    const uploadResponse = await uploadImage(req);
+    const { url } = uploadResponse;
+
+    const { userId, description } = req.body;
+    const user = await User.findById(userId);
+
+    const newPost = new Post({
+      userId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      location: user.location,
+      description,
+      userPicturePath: user.picturePath,
+      picturePath: url,
+      likes: {},
+      comments: [],
+    });
+
+    await newPost.save();
+    const posts = await Post.find();
+    res.status(201).json(posts);
+  } catch (error) {
+    res.status(409).json({ message: error.message });
+  }
+});
 
 /* ROUTES */
 app.use("/auth", authRoutes);
@@ -74,6 +93,7 @@ app.use("/posts", postRoutes);
 
 /* MONGOOSE SETUP */
 const PORT = process.env.PORT || 8080;
+const BUCKET_SERVICE = process.env.TRIGGER_URL || "localhost:8081";
 
 mongoose
   .connect(process.env.MONGO_URL, {
