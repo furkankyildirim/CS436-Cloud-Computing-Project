@@ -52,6 +52,11 @@ app.use("/auth", authRoutes);
 app.use("/users", userRoutes);
 app.use("/posts", postRoutes);
 
+/* HOME ROUTE */
+app.get("/", (req, res) => {
+  res.send("Welcome to the API");
+});
+
 /* MONGOOSE SETUP */
 const PORT = process.env.PORT || 8080;
 

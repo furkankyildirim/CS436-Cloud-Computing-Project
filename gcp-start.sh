@@ -13,7 +13,7 @@ DEFAULT_VM_MEMORY="4"
 
 DEFAULT_FIREWALL_RULE="allow-mongo"
 
-DEFAULT_REPOSITORY_NAME="server-repository"
+DEFAULT_REPOSITORY_NAME="project-repository"
 DEFAULT_REPOSITORY_ZONE="europe-west4"
 
 DEFAULT_CLOUD_RUN_SERVICE_NAME="server-backend"
@@ -134,7 +134,7 @@ while [[ $# -gt 0 ]]; do
         echo "  --vm-cpu               Number of CPUs of the VM instance. Default: medium"
         echo "  --vm-memory            Memory size of the VM instance. Default: 4"
         echo "  --firewall-rule        Name of the firewall rule to allow incoming traffic. Default: allow-mongo"
-        echo "  --repo-name            Name of the Artifact Registry repository. Default: server-repository"
+        echo "  --repo-name            Name of the Artifact Registry repository. Default: project-repository"
         echo "  --repo-zone            Zone of the Artifact Registry repository. Default: europe-west4"
         echo "  --service-name         Name of the Cloud Run service. Default: server-backend"
         echo "  --service-zone         Zone of the Cloud Run service. Default: europe-west4"
@@ -199,7 +199,7 @@ if [ -z "$FIREWALL_RULE" ]; then
 fi
 
 if [ -z "$REPOSITORY_NAME" ]; then
-    echo "Warning: --repo-name is not provided. Using the default value 'server-repository'."
+    echo "Warning: --repo-name is not provided. Using the default value 'project-repository'."
     REPOSITORY_NAME="${REPOSITORY_NAME:-$DEFAULT_REPOSITORY_NAME}"
 fi
 
@@ -266,8 +266,8 @@ if gcloud compute instances list --format="value(name)" | grep -q "^$DB_HOSTNAME
 else
     echo "DB '$DB_HOSTNAME' does not exist. Creating a new VM instance with MongoDB."
     gcloud compute instances create-with-container $DB_HOSTNAME \
-        --container-image=mongo:latest \
-        --tags=server-db \
+        --container-image mongo:latest \
+        --tags server-db \
         --container-env MONGO_INITDB_ROOT_USERNAME=$DB_USER,MONGO_INITDB_ROOT_PASSWORD=$DB_PASSWORD \
         --zone $VM_ZONE \
         --custom-cpu $VM_CPU \
@@ -309,42 +309,7 @@ else
     exit 1
 fi
 
-# STEP 2: Application Deployment
-
-# Enable the Artifact Registry API
-echo "Enabling the Artifact Registry API."
-gcloud services enable artifactregistry.googleapis.com cloudbuild.googleapis.com
-
-# Create a Artifact Registry repository with the zone
-if gcloud artifacts repositories list --format="value(name)" | grep -q "^$REPOSITORY_NAME$"; then
-    echo "Artifact Registry repository '$REPOSITORY_NAME' exists."
-else
-    echo "Artifact Registry repository '$REPOSITORY_NAME' does not exist. Creating a new repository."
-    gcloud artifacts repositories create $REPOSITORY_NAME \
-        --project=$PROJECT_ID \
-        --repository-format=docker \
-        --location=$REPOSITORY_ZONE \
-        --description="Server Container Repository"
-    echo "Artifact Registry repository '$REPOSITORY_NAME' is created."
-fi
-
-# Authenticate to the Artifact Registry repository and docker login
-cd ./server && gcloud auth configure-docker "$REPOSITORY_ZONE-docker.pkg.dev" --quiet && cd ..
-
-# Build and push the server image to the Artifact Registry repository if it does not exist
-gcloud builds submit --tag $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image:latest ./server
-
-# Check if the image is built and pushed successfully
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to build and push the image to the Artifact Registry repository."
-    exit 1
-else
-    echo "Image is built and pushed to the Artifact Registry repository."
-    echo "Image URI: $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image:latest"
-fi
-
-
-# STEP 3: Cloud Storage Bucket
+# STEP 2: Cloud Storage Bucket
 # Enable the Cloud Storage API
 echo "Enabling the Cloud Storage API."
 gcloud services enable storage-component.googleapis.com --quiet
@@ -367,7 +332,7 @@ else
 fi
 
 
-# STEP 4: Trigger Deployment
+# STEP 3: Trigger Deployment
 # Enable cloud functions API
 echo "Enabling the Cloud Functions API."
 gcloud services enable cloudfunctions.googleapis.com --quiet
@@ -393,7 +358,55 @@ fi
 # Get the trigger URL of the Cloud Function
 TRIGGER_URL=$(gcloud functions describe $CLOUD_FUNCTION_NAME --region=$CLOUD_FUNCTION_ZONE --format="value(httpsTrigger.url)")
 
-# STEP 4: Deploy the application to the Cloud Run
+
+# STEP 4: Application Deployment
+# Enable the Artifact Registry API
+echo "Enabling the Artifact Registry API."
+gcloud services enable artifactregistry.googleapis.com cloudbuild.googleapis.com
+
+# Create a Artifact Registry repository with the zone
+if gcloud artifacts repositories list --format="value(name)" | grep -q "^$REPOSITORY_NAME$"; then
+    echo "Artifact Registry repository '$REPOSITORY_NAME' exists."
+else
+    echo "Artifact Registry repository '$REPOSITORY_NAME' does not exist. Creating a new repository."
+    gcloud artifacts repositories create $REPOSITORY_NAME \
+        --project=$PROJECT_ID \
+        --repository-format=docker \
+        --location=$REPOSITORY_ZONE \
+        --description="Project repository for the server and client images."
+    echo "Artifact Registry repository '$REPOSITORY_NAME' is created."
+fi
+
+# Authenticate to the Artifact Registry repository
+gcloud auth configure-docker "$REPOSITORY_ZONE-docker.pkg.dev" --quiet 
+
+# Build and push the server image to the Artifact Registry repository if it does not exist
+gcloud builds submit --tag $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image:latest ./server
+
+# Check if the image is built and pushed successfully
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to build and push the image to the Artifact Registry repository."
+    exit 1
+else
+    echo "Image is built and pushed to the Artifact Registry repository."
+    echo "Image URI: $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/server-image:latest"
+fi
+
+
+# Build and push the client image to the Artifact Registry repository if it does not exist
+gcloud builds submit --tag $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/client-image:latest ./client
+
+# Check if the image is built and pushed successfully
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to build and push the image to the Artifact Registry repository."
+    exit 1
+else
+    echo "Image is built and pushed to the Artifact Registry repository."
+    echo "Image URI: $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/client-image:latest"
+fi
+
+
+# STEP 5: Deploy the application to the Cloud Run
 # Enable the Cloud Run API
 echo "Enabling the Cloud Run API."
 gcloud services enable run.googleapis.com --quiet
@@ -405,3 +418,62 @@ gcloud run deploy $CLOUD_RUN_SERVICE_NAME \
     --region $CLOUD_RUN_SERVICE_ZONE \
     --allow-unauthenticated \
     --set-env-vars MONGO_URL="mongodb://$DB_USER:$DB_PASSWORD@$DB_IP:$DB_PORT",JWT_SECRET=$CLOUD_RUN_SERVICE_SECRET,TRIGGER_URL=$TRIGGER_URL
+
+# Check if the service is deployed successfully
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to deploy the Cloud Run service."
+    exit 1
+else
+    echo "Cloud Run service '$CLOUD_RUN_SERVICE_NAME' is deployed."
+fi
+
+# Get the service URL of the Cloud Run
+SERVICE_URL=$(gcloud run services describe $CLOUD_RUN_SERVICE_NAME --region=$CLOUD_RUN_SERVICE_ZONE --format="value(status.url)")
+
+echo "Service URL: $SERVICE_URL"
+
+# STEP 6: Build and deploy the client to the VM instance
+# Use gcloud to list VM instances and check if the specified VM exists
+if gcloud compute instances list --format="value(name)" | grep -q "^client-frontend$"; then
+    echo "VM 'client-frontend' exists."
+
+    # Delete the existing VM instance
+    gcloud compute instances delete client-frontend --zone $VM_ZONE --quiet
+
+    # Check if the VM is deleted successfully. If the error code exists, print the raised error.
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to delete the VM instance."
+        exit 1
+    fi
+
+    echo "VM 'client-frontend' is deleted."
+fi
+
+echo "Creating a new VM instance with the client image."
+
+# Create a new VM instance with the client image
+gcloud compute instances create-with-container client-frontend \
+    --container-image $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/client-image:latest \
+    --zone $VM_ZONE \
+    --tags default-allow-http,http-server \
+    --container-env REACT_APP_API_URL=$SERVICE_URL
+
+# Check if the VM is created successfully. If the error code exists, print the raised error.
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to create the VM instance."
+    exit 1
+fi
+
+# Get the IP address of the VM
+CLIENT_IP=$(gcloud compute instances describe client-frontend --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
+echo "IP Address of VM 'client-frontend': $CLIENT_IP"
+
+# Check if the VM is running
+if gcloud compute instances list --format="value(name)" | grep -q "^client-frontend$"; then
+    echo "VM 'client-frontend' is running."
+else
+    echo "Error: VM 'client-frontend' is not running."
+    exit 1
+fi
+
+echo "Application is deployed successfully."

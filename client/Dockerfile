@@ -17,7 +17,7 @@ COPY . .
 RUN yarn build
 RUN yarn global add serve
 
-EXPOSE 3000
+EXPOSE 80
 
 # Start Nginx when the container runs
-CMD ["serve", "-s", "build"]
+CMD ["serve", "-s", "build", "-l", "80"]
