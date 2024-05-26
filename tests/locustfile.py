@@ -18,8 +18,8 @@ class MyTaskSet(TaskSet):
     @task
     def register_and_test(self):
         # Generate random credentials for each new user
-        random_email = ''.join(random.choices(string.ascii_lowercase, k=5)) + "@example.com"
-        random_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        random_email = ''.join(random.choices(string.ascii_lowercase, k=20)) + "@example.com"
+        random_password = "123456"
 
         # Register new user
 
@@ -53,37 +53,45 @@ class MyTaskSet(TaskSet):
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test other routes here
-        self.get_user(headers)
-        self.get_posts(headers)
         self.create_post(headers, id)
+        self.get_user(headers)
+        #self.get_posts(headers)
+        
     
     def get_user(self, headers):
         id = "6652eac17154d5be6ceade89"
         response = self.client.get("/users/6652eac17154d5be6ceade89", headers=headers)
         print(f"Get user status code: {response.status_code}")
     
-    def get_posts(self, headers):
-        response = self.client.get("/posts", headers=headers)
-        print(f"Get posts status code: {response.status_code}")
+    #def get_posts(self, headers):
+        #response = self.client.get("/posts", headers=headers)
+        #print(f"Get posts status code: {response.status_code}")
 
     def create_post(self, headers, id):
-        multipart_data = MultipartEncoder(
-        fields={
-                
-                "userId": id,
-                "description": "Hello World",
-                "picturePath": ""
 
-            }
-        )
-        headers_with_content = {
-            'Content-Type': multipart_data.content_type,
-            'Authorization': headers.get('Authorization')  
-        }
-        response = self.client.post("/posts", data=multipart_data,
-                                     headers=headers_with_content)
-        
-        print(f"Create Posts status code: {response.status_code}")
+        # Path to the image file
+        image_path = "/Users/furkankyildirim/Desktop/Ekran Resmi 2024-05-26 20.55.04.png"
+
+        # Ensure the image file exists
+        if os.path.exists(image_path):
+            # Create the multipart form data with the image file
+            multipart_data = MultipartEncoder(
+                fields={
+                    "userId": id,
+                    "description": "Hello World",
+                    "picture": (os.path.basename(image_path), open(image_path, 'rb'), 'image/jpeg')
+                }
+            ) 
+            # Set headers with content type and authorization
+            headers_with_content = {
+                    'Content-Type': multipart_data.content_type,
+                    'Authorization': headers['Authorization']
+                }
+            
+            response = self.client.post("/posts", data=multipart_data,
+                                        headers=headers_with_content)
+            
+            print(f"Create Posts status code: {response.status_code}")
 
 
 class MyLoadTest(HttpUser):
