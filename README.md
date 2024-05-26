@@ -4,6 +4,10 @@
 
 Doruk Benli 29182 - Ege Öztaş 28828 - Furkan K. Yıldırım 35145 - Nisa Erdal 28943
 
+# Demo Video Link 
+
+https://drive.google.com/file/d/13c5RRezbQM5gZ-6WDJQkEw_hLXDKWlOp/view
+
 # Backend project and Description:
 
 Our application is a social media platform like Instagram where users can post pictures and share their thoughts.
@@ -160,3 +164,18 @@ terraform apply
 ```
 
 After following you can see the changes and deployment on your GCP account.
+
+## Locust Testing
+
+1. Navigate to tests directory
+```bash
+cd tests
+```
+2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+3. Start locust to test
+```bash
+locust
+```
