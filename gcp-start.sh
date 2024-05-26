@@ -393,6 +393,7 @@ else
 fi
 
 
+
 # Build and push the client image to the Artifact Registry repository if it does not exist
 gcloud builds submit --tag $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/client-image:latest ./client
 
@@ -405,8 +406,6 @@ else
     echo "Image URI: $REPOSITORY_ZONE-docker.pkg.dev/$PROJECT_ID/$REPOSITORY_NAME/client-image:latest"
 fi
 
-
-# STEP 5: Deploy the application to the Cloud Run
 # Enable the Cloud Run API
 echo "Enabling the Cloud Run API."
 gcloud services enable run.googleapis.com --quiet
