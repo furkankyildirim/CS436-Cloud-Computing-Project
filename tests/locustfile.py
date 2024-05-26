@@ -11,8 +11,9 @@ class MyTaskSet(TaskSet):
         
         # Extract the token from the response
         token = response.json().get("token")
+        id = response.json().get('user', {}).get('_id')
         
-        return token
+        return token, id
     
     @task
     def register_and_test(self):
@@ -21,10 +22,7 @@ class MyTaskSet(TaskSet):
         random_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
 
         # Register new user
-        file_path = 'client/public/logo192.png'
-        if not os.path.exists(file_path):
-            print(f"File not found: {file_path}")
-            return
+
         
         multipart_data = MultipartEncoder(
             fields={
@@ -32,7 +30,7 @@ class MyTaskSet(TaskSet):
                 'lastName': 'Doe',
                 'email': random_email,
                 'password': random_password,
-                'picture': ('image.png', open(file_path, 'rb'), 'image/png'),
+                'picturePath': '',
                 'friends': '[]',  # assuming friends is an empty list initially
                 'location': 'New York',
                 'occupation': 'Developer'
@@ -45,30 +43,52 @@ class MyTaskSet(TaskSet):
         print(f"Registration status code: {response.status_code}")
         
         # If registration successful, login and test other routes
-        if response.status_code == 200:
-            token = self.login(random_email, random_password)
+        if response.status_code == 201:
+            token, id = self.login(random_email, random_password)
             
             # Test other routes with the obtained token
-            self.test_routes(token)
+            self.test_routes(token, id)
     
-    def test_routes(self, token):
+    def test_routes(self, token, id):
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test other routes here
         self.get_user(headers)
         self.get_posts(headers)
+        self.create_post(headers, id)
     
     def get_user(self, headers):
-        response = self.client.get("/users/{id}", headers=headers)
+        id = "6652eac17154d5be6ceade89"
+        response = self.client.get("/users/6652eac17154d5be6ceade89", headers=headers)
         print(f"Get user status code: {response.status_code}")
     
     def get_posts(self, headers):
         response = self.client.get("/posts", headers=headers)
         print(f"Get posts status code: {response.status_code}")
 
+    def create_post(self, headers, id):
+        multipart_data = MultipartEncoder(
+        fields={
+                
+                "userId": id,
+                "description": "Hello World",
+                "picturePath": ""
+
+            }
+        )
+        headers_with_content = {
+            'Content-Type': multipart_data.content_type,
+            'Authorization': headers.get('Authorization')  
+        }
+        response = self.client.post("/posts", data=multipart_data,
+                                     headers=headers_with_content)
+        
+        print(f"Create Posts status code: {response.status_code}")
+
+
 class MyLoadTest(HttpUser):
-    tasks = [MyTaskSet]
-    wait_time = between(1, 5)  # Simulate a wait time between 1 and 5 seconds between tasks
+    tasks = [MyTaskSet] 
+    wait_time = between(1, 5) 
 
 
 
