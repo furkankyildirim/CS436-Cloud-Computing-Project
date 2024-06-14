@@ -43,8 +43,8 @@ Even though we do not require automated CI/CD pipelines at this stage, we are pr
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/egeoztass/CS436-Project.git
-cd CS436-Project/
+git clone https://github.com/furkankyildirim/CS436-Cloud-Computing-Project.git
+cd CS436-Cloud-Computing-Project/
 ```
 
 ## Server Side
